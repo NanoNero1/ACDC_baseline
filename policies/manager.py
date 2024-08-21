@@ -36,6 +36,11 @@ import sys
 
 import pdb
 
+# DIMITRI IMPORTS
+from IHT_OPT.ihtSGD import ihtSGD
+from IHT_OPT.ihtAGD import ihtAGD
+import torch.nn.functional as F
+
 # TODO (Discuss): do we want to have tqdm in the terminal output?
 USE_TQDM = True
 if not USE_TQDM:
@@ -364,6 +369,15 @@ class Manager:
     def run(self):
         train_loader = self.train_loader
         test_loader = self.test_loader
+
+
+        ## DIMITRI CODE
+        ## IHT-SGD
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        optimizer = ihtSGD(self.model.parameters(), beta=10.0,sparsity=0.90, momentum=0.9,device=device,model=self.model)
+    
+        ## IHT-AGD
+        #optimizer = ihtAGD(self.model.parameters(), beta=10.0,kappa=30.0,sparsity=0.90,device=device,model=self.model)
         
         # If the evaluation flag is enabled, then only compute the validation accuracy and exit the method
         if self.eval_only:
@@ -390,49 +404,49 @@ class Manager:
 
             metas = {}
 
-            #
+            optimizer.iteration += 1
 
-            if epoch in self.pruning_epochs:
-                metas = self.run_policies_for_method('pruner',
-                                                     'on_epoch_begin',
-                                                     num_workers=self.num_workers,
-                                                     dset=self.data_train,
-                                                     subset_inds=subset_inds,
-                                                     device=self.device,
-                                                     batch_size=64,
-                                                     epoch_num=epoch)
-                # track the differences in masks between consecutive mask updates
-                self.pruned_masks_similarity(epoch)
-                self.pruned_state = "sparse"
-                level = None
-                for meta in metas:
-                    if "level" in meta:
-                        level = meta["level"]
-                        self.current_sparsity = level
-                        break
+            # if epoch in self.pruning_epochs:
+            #     metas = self.run_policies_for_method('pruner',
+            #                                          'on_epoch_begin',
+            #                                          num_workers=self.num_workers,
+            #                                          dset=self.data_train,
+            #                                          subset_inds=subset_inds,
+            #                                          device=self.device,
+            #                                          batch_size=64,
+            #                                          epoch_num=epoch)
+            #     # track the differences in masks between consecutive mask updates
+            #     self.pruned_masks_similarity(epoch)
+            #     self.pruned_state = "sparse"
+            #     level = None
+            #     for meta in metas:
+            #         if "level" in meta:
+            #             level = meta["level"]
+            #             self.current_sparsity = level
+            #             break
 
-            if self.track_weight_hist:
-                metas = get_weights_hist_meta(self.model, metas)
+            # if self.track_weight_hist:
+            #     metas = get_weights_hist_meta(self.model, metas)
 
             
-            self.training_progress.meta_info(epoch, metas)
-            if epoch in self.recycling_epochs:
-                metas = self.run_policies_for_method('recycler',
-                                             'on_epoch_begin',
-                                             num_workers=self.num_workers,
-                                             dset=self.data_train,
-                                             subset_inds=subset_inds,
-                                             device=self.device,
-                                             batch_size=64,
-                                             epoch_num=epoch,
-                                             optimizer=self.trainers[0].optimizer)
-                for meta in metas:
-                    if "level" in meta[1]:
-                        self.current_sparsity = meta[1]["level"]
-                        break
-                #if len(metas) > 0 and "level" in metas[0][1] and metas[0][1]["level"] <= 0.00002:
-                self.pruned_state = "dense"
-                self.reset_momentum=self.reset_momentum_after_recycling
+            # self.training_progress.meta_info(epoch, metas)
+            # if epoch in self.recycling_epochs:
+            #     metas = self.run_policies_for_method('recycler',
+            #                                  'on_epoch_begin',
+            #                                  num_workers=self.num_workers,
+            #                                  dset=self.data_train,
+            #                                  subset_inds=subset_inds,
+            #                                  device=self.device,
+            #                                  batch_size=64,
+            #                                  epoch_num=epoch,
+            #                                  optimizer=self.trainers[0].optimizer)
+            #     for meta in metas:
+            #         if "level" in meta[1]:
+            #             self.current_sparsity = meta[1]["level"]
+            #             break
+            #     #if len(metas) > 0 and "level" in metas[0][1] and metas[0][1]["level"] <= 0.00002:
+            #     self.pruned_state = "dense"
+            #     self.reset_momentum=self.reset_momentum_after_recycling
 
             
             epoch_loss, epoch_acc = 0., 0.
@@ -440,46 +454,68 @@ class Manager:
             for i, batch in enumerate(train_loader):
                 if self.steps_per_epoch and i > self.steps_per_epoch:
                     break
-                # here KD can be added through the `loss` param
-                start = time.time()
-                val  = self.run_policies_for_method('trainer',
-                                                         'on_minibatch_begin',
-                                                         minibatch=batch,
-                                                         device=self.device,
-                                                         loss=0.,
-                                                         agg_func=None)
-                                                         # agg_func=lambda x: torch.sum(x, dim=0))
-                loss, acc = val[0]
+
+
+                # # here KD can be added through the `loss` param
+                # start = time.time()
+                # val  = self.run_policies_for_method('trainer',
+                #                                          'on_minibatch_begin',
+                #                                          minibatch=batch,
+                #                                          device=self.device,
+                #                                          loss=0.,
+                #                                          agg_func=None)
+                #                                          # agg_func=lambda x: torch.sum(x, dim=0))
+
+                ## DIMITRI OPTIMIZER
+                images,labels = batch
+
+                optimizer.zero_grad()
+                outputs = self.model(images)
+                loss = F.cross_entropy(outputs, labels)
+                loss.backward()
+
+                _, preds = outputs.max(1)
+                correct = preds.eq(labels).sum()
+
+
+                if optimizer.methodName == "iht_AGD":
+                        optimizer.currentDataBatch = (images.clone(),labels.clone())
+
+                optimizer.step()
+
+
+
+                acc = correct / batch[0].size(0)
                 epoch_acc += acc * batch[0].size(0) / n_samples
 
-                def sum_pytorch_nums(lst):
-                    res = 0.
-                    for el in lst:
-                        res = res + el
-                    return res
+                # def sum_pytorch_nums(lst):
+                #     res = 0.
+                #     for el in lst:
+                #         res = res + el
+                #     return res
 
-                reg_loss = self.run_policies_for_method('regularizer',
-                                                        'on_minibatch_begin',
-                                                        agg_func=sum_pytorch_nums)
-                loss = loss + reg_loss
+                # reg_loss = self.run_policies_for_method('regularizer',
+                #                                         'on_minibatch_begin',
+                #                                         agg_func=sum_pytorch_nums)
+                # loss = loss + reg_loss
 
                 epoch_loss += loss.item() * batch[0].size(0) / n_samples
                 
                 
-                self.run_policies_for_method('trainer',
-                                             'on_parameter_optimization',
-                                             loss=loss,
-                                             reset_momentum=self.reset_momentum,
-                                             epoch_num=epoch)
-                # If we were supposed to reset momentum, we just have.
-                self.reset_momentum=False
+                # self.run_policies_for_method('trainer',
+                #                              'on_parameter_optimization',
+                #                              loss=loss,
+                #                              reset_momentum=self.reset_momentum,
+                #                              epoch_num=epoch)
+                # # If we were supposed to reset momentum, we just have.
+                # self.reset_momentum=False
                 
-                self.run_policies_for_method('pruner',
-                                             'after_parameter_optimization',
-                                             model=self.model)
-                self.run_policies_for_method('recycler',
-                                             'after_parameter_optimization',
-                                             model=self.model)
+                # self.run_policies_for_method('pruner',
+                #                              'after_parameter_optimization',
+                #                              model=self.model)
+                # self.run_policies_for_method('recycler',
+                #                              'after_parameter_optimization',
+                #                              model=self.model)
 
                 ############################### tracking the training statistics ############################
                 self.training_progress.step(loss=loss,
@@ -491,69 +527,69 @@ class Manager:
             # log train stats
             self.logging_function({'epoch': epoch, 'train loss': epoch_loss, 'train acc': epoch_acc})
 
-            # in case of using perturbed labels, track loss and accuracy on the perturbed samples 
-            if self.num_random_labels > 0:
-                loss_perturbed_samples, correct_perturbed_samples = self.trainers[0].eval_model(self.perturbed_data_loader,
-                                                                                                self.device, epoch)
-                acc_perturbed_samples = correct_perturbed_samples / len(self.perturbed_data)
-                loss_perturbed_rightlabels, correct_perturbed_rightlabels = self.trainers[0].eval_model(self.perturbed_data_correct_labels_loader,
-                                                                                                self.device, epoch)
-                acc_perturbed_rightlabels = correct_perturbed_rightlabels / len(self.perturbed_data)
-                self.logging_function({'epoch': epoch, 'perturbed loss': loss_perturbed_samples, 'perturbed acc': acc_perturbed_samples})
-                self.logging_function({'epoch': epoch, 'perturbed loss (correct)': loss_perturbed_rightlabels, 'perturbed acc (correct)': acc_perturbed_rightlabels})
+            # # in case of using perturbed labels, track loss and accuracy on the perturbed samples 
+            # if self.num_random_labels > 0:
+            #     loss_perturbed_samples, correct_perturbed_samples = self.trainers[0].eval_model(self.perturbed_data_loader,
+            #                                                                                     self.device, epoch)
+            #     acc_perturbed_samples = correct_perturbed_samples / len(self.perturbed_data)
+            #     loss_perturbed_rightlabels, correct_perturbed_rightlabels = self.trainers[0].eval_model(self.perturbed_data_correct_labels_loader,
+            #                                                                                     self.device, epoch)
+            #     acc_perturbed_rightlabels = correct_perturbed_rightlabels / len(self.perturbed_data)
+            #     self.logging_function({'epoch': epoch, 'perturbed loss': loss_perturbed_samples, 'perturbed acc': acc_perturbed_samples})
+            #     self.logging_function({'epoch': epoch, 'perturbed loss (correct)': loss_perturbed_rightlabels, 'perturbed acc (correct)': acc_perturbed_rightlabels})
 
-            # What should happen?
-            # - Start tracking dense gain if we just finished warming up
-            # - Update dense gain if we are in dense regime.
+            # # What should happen?
+            # # - Start tracking dense gain if we just finished warming up
+            # # - Update dense gain if we are in dense regime.
 
-            self.end_epoch(epoch, test_loader)
+            # self.end_epoch(epoch, test_loader)
 
-            ##################################################
-            # Record FLOPs :
-            # calculate FLOPs for backward as in https://arxiv.org/pdf/1911.11134.pdf (Appendix H)
-            forward_flops_per_sample, list_layers, module_names = get_macs_sparse(self.data[0], self.device, self.model)
-            backward_flops_per_sample = 2 * forward_flops_per_sample
-            trn_flops_per_sample = forward_flops_per_sample + backward_flops_per_sample
-            total_trn_flops_epoch = trn_flops_per_sample * n_samples
+            # ##################################################
+            # # Record FLOPs :
+            # # calculate FLOPs for backward as in https://arxiv.org/pdf/1911.11134.pdf (Appendix H)
+            # forward_flops_per_sample, list_layers, module_names = get_macs_sparse(self.data[0], self.device, self.model)
+            # backward_flops_per_sample = 2 * forward_flops_per_sample
+            # trn_flops_per_sample = forward_flops_per_sample + backward_flops_per_sample
+            # total_trn_flops_epoch = trn_flops_per_sample * n_samples
             
-            total_train_flops += total_trn_flops_epoch
+            # total_train_flops += total_trn_flops_epoch
 
-            self.logging_function({'epoch': epoch, 'train FLOPs per sample': trn_flops_per_sample})
-            self.logging_function({'epoch': epoch, 'train FLOPs epoch': total_trn_flops_epoch})
-            self.logging_function({'epoch': epoch, 'test FLOPs per sample': forward_flops_per_sample})
-            ####################################################
+            # self.logging_function({'epoch': epoch, 'train FLOPs per sample': trn_flops_per_sample})
+            # self.logging_function({'epoch': epoch, 'train FLOPs epoch': total_trn_flops_epoch})
+            # self.logging_function({'epoch': epoch, 'test FLOPs per sample': forward_flops_per_sample})
+            # ####################################################
 
-            current_lr = self.trainers[0].optim_lr
-            self.logging_function({'epoch': epoch, 'lr': current_lr})
+            # current_lr = self.trainers[0].optim_lr
+            # self.logging_function({'epoch': epoch, 'lr': current_lr})
             
-            val_loss, val_correct = self.get_eval_stats(epoch, test_loader)
+            # val_loss, val_correct = self.get_eval_stats(epoch, test_loader)
 
-            val_acc = 1.0 * val_correct / len(test_loader.dataset)
-            best_sparse = False
-            best_dense = False
-            scheduled = False
-            if self.pruned_state == "sparse":
-                if int(self.current_sparsity * 10000) > int(self.best_val_acc["sparse"]["sparsity"] * 10000):
-                    best_sparse = True
-                    self.best_val_acc["sparse"]["sparsity"] = self.current_sparsity
-                    self.best_val_acc["sparse"]["val_acc"] = val_acc
-                    logging.info("saving best sparse checkpoint with new sparsity")
-                elif int(self.current_sparsity  * 10000) == int(self.best_val_acc["sparse"]["sparsity"] * 10000) \
-                   and val_acc > self.best_val_acc["sparse"]["val_acc"]:
-                    best_sparse = True
-                    self.best_val_acc["sparse"]["val_acc"] = val_acc
-                    logging.info("saving best sparse checkpoint")
-            if self.pruned_state == "dense" and val_acc > self.best_val_acc["dense"]:
-                best_dense = True
-                self.best_val_acc["dense"] = val_acc
-            if (epoch + 1)  % self.checkpoint_freq == 0:
-                logging.info("scheduled checkpoint")
-                scheduled = True
+            # val_acc = 1.0 * val_correct / len(test_loader.dataset)
+            # best_sparse = False
+            # best_dense = False
+            # scheduled = False
+            # if self.pruned_state == "sparse":
+            #     if int(self.current_sparsity * 10000) > int(self.best_val_acc["sparse"]["sparsity"] * 10000):
+            #         best_sparse = True
+            #         self.best_val_acc["sparse"]["sparsity"] = self.current_sparsity
+            #         self.best_val_acc["sparse"]["val_acc"] = val_acc
+            #         logging.info("saving best sparse checkpoint with new sparsity")
+            #     elif int(self.current_sparsity  * 10000) == int(self.best_val_acc["sparse"]["sparsity"] * 10000) \
+            #        and val_acc > self.best_val_acc["sparse"]["val_acc"]:
+            #         best_sparse = True
+            #         self.best_val_acc["sparse"]["val_acc"] = val_acc
+            #         logging.info("saving best sparse checkpoint")
+            # if self.pruned_state == "dense" and val_acc > self.best_val_acc["dense"]:
+            #     best_dense = True
+            #     self.best_val_acc["dense"] = val_acc
+            # if (epoch + 1)  % self.checkpoint_freq == 0:
+            #     logging.info("scheduled checkpoint")
+            #     scheduled = True
 
-            save_checkpoint(epoch, self.model_config, self.model, self.trainers[0].optimizer,
-                                self.trainers[0].lr_scheduler, self.run_dir,
-                            is_best_sparse=best_sparse, is_best_dense=best_dense,
-                            is_scheduled_checkpoint=scheduled)
+            # save_checkpoint(epoch, self.model_config, self.model, self.trainers[0].optimizer,
+            #                     self.trainers[0].lr_scheduler, self.run_dir,
+            #                 is_best_sparse=best_sparse, is_best_dense=best_dense,
+            #                 is_scheduled_checkpoint=scheduled)
 
         # end_epoch even if epochs==0
         logging.info('====>Final summary for the run:')
