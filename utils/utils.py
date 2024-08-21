@@ -94,10 +94,10 @@ class TrainingProgressTracker(object):
                                f'the list of allowed statistics {TrainingProgressTracker.stats}')
 
     def write_progress(self):
-        for stat in TrainingProgressTracker.stats:
-            self.tb_logger.add_scalar(stat,
-                                      getattr(self, stat),
-                                      self.epoch * self.train_size + self.progress + 1)
+        # for stat in TrainingProgressTracker.stats:
+        #     self.tb_logger.add_scalar(stat,
+        #                               getattr(self, stat),
+        #                               self.epoch * self.train_size + self.progress + 1)
 
         logging.info(f'Epoch [{self.epoch}] [{self.progress+1}/{self.train_size}]:    ' +
                      f'Loss: {self.loss:.6f}    ' +
