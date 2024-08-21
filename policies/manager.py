@@ -406,6 +406,9 @@ class Manager:
 
             optimizer.iteration += 1
 
+            if epoch in [75,115,155]:
+                optimizer.beta *= 10.0
+
             # if epoch in self.pruning_epochs:
             #     metas = self.run_policies_for_method('pruner',
             #                                          'on_epoch_begin',
