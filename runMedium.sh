@@ -29,5 +29,4 @@ python main.py \
 	--checkpoint_freq 50 \
         --manual_seed="12345" \
 	--experiment_root_path "./experiments_iht" \
-	--exp_name=cifar100_wideresnet \
-	--use_wandb=False
+	--exp_name=cifar100_wideresnet 
