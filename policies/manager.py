@@ -374,10 +374,10 @@ class Manager:
         ## DIMITRI CODE
         ## IHT-SGD
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        optimizer = ihtSGD(self.model.parameters(), beta=10.0,sparsity=0.90, momentum=0.9,device=device,model=self.model)
+        #optimizer = ihtSGD(self.model.parameters(), beta=10.0,sparsity=0.90, momentum=0.9,device=device,model=self.model)
     
         ## IHT-AGD
-        #optimizer = ihtAGD(self.model.parameters(), beta=10.0,kappa=30.0,sparsity=0.90,device=device,model=self.model)
+        optimizer = ihtAGD(self.model.parameters(), beta=10.0,kappa=30.0,sparsity=0.90,device=device,model=self.model)
         
         # If the evaluation flag is enabled, then only compute the validation accuracy and exit the method
         if self.eval_only:
