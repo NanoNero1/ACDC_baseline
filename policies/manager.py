@@ -469,6 +469,9 @@ class Manager:
                 ## DIMITRI OPTIMIZER
                 images,labels = batch
 
+                images = images.cuda()
+                labels = labels.cuda()
+
                 optimizer.zero_grad()
                 outputs = self.model(images)
                 loss = F.cross_entropy(outputs, labels)
