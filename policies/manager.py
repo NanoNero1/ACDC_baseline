@@ -374,10 +374,10 @@ class Manager:
         ## DIMITRI CODE
         ## IHT-SGD
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        #optimizer = ihtSGD(self.model.parameters(), beta=10.0,sparsity=0.90, momentum=0.9,device=device,model=self.model)
+        optimizer = ihtSGD(self.model.parameters(), beta=10.0,sparsity=0.90, momentum=0.9,device=device,model=self.model)
     
         ## IHT-AGD
-        optimizer = ihtAGD(self.model.parameters(), beta=10.0,kappa=30.0,sparsity=0.90,device=device,model=self.model)
+        #optimizer = ihtAGD(self.model.parameters(), beta=10.0,kappa=30.0,sparsity=0.90,device=device,model=self.model)
         
         # If the evaluation flag is enabled, then only compute the validation accuracy and exit the method
         if self.eval_only:
@@ -530,6 +530,10 @@ class Manager:
                                             lr=self.trainers[0].optim_lr)
                 #############################################################################################
 
+
+            # once per epoch
+            self.eval_training(epoch=0, net=self.model,test_loader=test_loader)
+
             # log train stats
             self.logging_function({'epoch': epoch, 'train loss': epoch_loss, 'train acc': epoch_acc})
 
@@ -605,4 +609,43 @@ class Manager:
 
 
         return val_correct, len(test_loader.dataset)
+    
+
+    @torch.no_grad()
+    def eval_training(self,epoch=0, net=None,test_loader=None):
+
+        start = time.time()
+        net.eval()
+
+        test_loss = 0.0 # cost function error
+        correct = 0.0
+
+        for (images, labels) in test_loader:
+
+            images = images.cuda()
+            labels = labels.cuda()
+
+            outputs = net(images)
+            loss = F.cross_entropy(outputs, labels)
+
+            test_loss += loss.item()
+            _, preds = outputs.max(1)
+            correct += preds.eq(labels).sum()
+
+        finish = time.time()
+        print('Evaluating Network.....')
+        print('Test set: Epoch: {}, Average loss: {:.4f}, Accuracy: {:.4f}, Time consumed:{:.2f}s'.format(
+            epoch,
+            test_loss / len(test_loader.dataset),
+            correct.float() / len(test_loader.dataset),
+            finish - start
+        ))
+        print()
+
+        #add informations to tensorboard
+        # if tb:
+        #     writer.add_scalar('Test/Average loss', test_loss / len(cifar100_test_loader.dataset), epoch)
+        #     writer.add_scalar('Test/Accuracy', correct.float() / len(cifar100_test_loader.dataset), epoch)
+
+        return correct.float() / len(test_loader.dataset)
 
