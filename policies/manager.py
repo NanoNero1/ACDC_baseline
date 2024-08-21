@@ -457,7 +457,7 @@ class Manager:
 
 
                 # # here KD can be added through the `loss` param
-                # start = time.time()
+                start = time.time()
                 # val  = self.run_policies_for_method('trainer',
                 #                                          'on_minibatch_begin',
                 #                                          minibatch=batch,
