@@ -29,3 +29,6 @@ python main.py \
         --manual_seed="12345" \
 	--experiment_root_path "./experiments_iht" \
 	--exp_name=cifar100_wideresnet 
+
+
+## --gpu!!!!!!
