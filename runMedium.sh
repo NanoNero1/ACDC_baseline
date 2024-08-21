@@ -24,7 +24,6 @@ python main.py \
 	--epochs=200 \
 	--warmup_epochs=5 \
 	--batch_size=128 \
-	--gpus=${gpu} \
 	--reset_momentum_after_recycling \
 	--checkpoint_freq 50 \
         --manual_seed="12345" \
