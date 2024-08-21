@@ -63,7 +63,7 @@ class TrainingProgressTracker(object):
         self.epoch = start_epoch
 
         self.progress = 0
-        self.tb_logger = SummaryWriter(log_dir=tb_logdir)
+        #self.tb_logger = SummaryWriter(log_dir=tb_logdir)
 
         self.init_stats()
 
