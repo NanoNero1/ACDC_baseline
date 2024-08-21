@@ -1,19 +1,27 @@
-declare -a gpu=4,5,6,7
-declare -a manual_seed=(10)
-declare -a sparsity=(50 75 90 95)
+#!/bin/bash
+#SBATCH --job-name=myjob         # create a short name for your job
+#SBATCH --nodes=1             # node count
+#SBATCH --ntasks=1               # total number of tasks across all nodes
+##SBATCH --mem=16G
+#SBATCH --time=30-00:00:00
+##SBATCH --cpus-per-task=16
+#SBATCH --gpus-per-node=a100_3g.40gb:1
+##SBATCH --gpus-per-node=a100_7g.80gb:1
+
+module purge
+module load python/anaconda3
+
+eval "$(conda shell.bash hook)"  
+conda activate redenv 
 
 
-for ((j=0;j<${#manual_seed[@]};++j));
-do
-for ((i=0;i<${#sparsity[@]};++i));
-do
 python main.py \
 	--dset=cifar100 \
-	--dset_path=/home/Datasets/ \
+	--dset_path=~/Datasets/cifar100 \
 	--arch=wideresnet \
-	--config_path=./configs/neurips/iht_cifar100_wideresnet_steplr_dense13_s${sparsity[i]}.yaml \
+	--config_path=./configs/neurips/iht_cifar100_wideresnet_steplr_freq20_s50.yaml \
 	--workers=4 \
-	--epochs=225 \
+	--epochs=200 \
 	--warmup_epochs=5 \
 	--batch_size=128 \
 	--gpus=${gpu} \
@@ -21,8 +29,5 @@ python main.py \
 	--checkpoint_freq 50 \
         --manual_seed=${manual_seed[j]} \
 	--experiment_root_path "./experiments_iht" \
-	--exp_name=cifar100_wideresnet_dense13_s${sparsity[i]} \
-        --wandb_project "cifar100_wideresnet" 
-
-done
-done
+	--exp_name=cifar100_wideresnet \
+	--use_wandb=False
