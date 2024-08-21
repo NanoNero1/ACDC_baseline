@@ -27,7 +27,7 @@ python main.py \
 	--gpus=${gpu} \
 	--reset_momentum_after_recycling \
 	--checkpoint_freq 50 \
-        --manual_seed=${12345} \
+        --manual_seed="12345" \
 	--experiment_root_path "./experiments_iht" \
 	--exp_name=cifar100_wideresnet \
 	--use_wandb=False
