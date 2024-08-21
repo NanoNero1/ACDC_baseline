@@ -533,6 +533,7 @@ class Manager:
 
             # once per epoch
             self.eval_training(epoch=0, net=self.model,test_loader=test_loader)
+            self.model.train()
 
             # log train stats
             self.logging_function({'epoch': epoch, 'train loss': epoch_loss, 'train acc': epoch_acc})
