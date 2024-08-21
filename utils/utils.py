@@ -118,8 +118,8 @@ class TrainingProgressTracker(object):
             self.epoch += 1
 
     def val_info(self, epoch_num, val_loss, val_correct):
-        self.tb_logger.add_scalar('val_loss', val_loss, epoch_num)
-        self.tb_logger.add_scalar('val_acc', 1.0 * val_correct / self.val_size, epoch_num)
+        #self.tb_logger.add_scalar('val_loss', val_loss, epoch_num)
+        #self.tb_logger.add_scalar('val_acc', 1.0 * val_correct / self.val_size, epoch_num)
 
         logging.info(f'Epoch [{epoch_num}] Test set: Average loss: {val_loss:.4f}, ' +
                      f'Top1: {val_correct:.0f}/{self.val_size} ' +
@@ -141,9 +141,9 @@ class TrainingProgressTracker(object):
         for sparsity_dict in sparsity_dicts:
             for name, (num_zeros, num_params) in sparsity_dict.items():
 
-                self.tb_logger.add_scalar(name + '_sparsity',
-                                          num_zeros.float() / num_params,
-                                          epoch_num)
+                #self.tb_logger.add_scalar(name + '_sparsity',
+                #                          num_zeros.float() / num_params,
+                #                          epoch_num)
 
                 logging.info(f'\t{name}:\t{num_zeros.float()/num_params:.4f} '
                              f'(pruned {num_zeros}/{num_params})')
@@ -172,8 +172,9 @@ class TrainingProgressTracker(object):
                         continue
                     info_list = list(meta[key].items())
                     for info in info_list:
-                        self.tb_logger.add_scalar('bottom_magnitudes' + info[0],
-                            info[1].item(), epoch_num)
+                        # self.tb_logger.add_scalar('bottom_magnitudes' + info[0],
+                        #     info[1].item(), epoch_num)
+                        pass
 
             if key == 'weights':
                 for meta in metas:
@@ -181,8 +182,9 @@ class TrainingProgressTracker(object):
                         continue
                     info_list = list(meta[key].items())
                     for info in info_list:
-                        self.tb_logger.add_histogram('weights_of_' + info[0],
-                            info[1], epoch_num)
+                        # self.tb_logger.add_histogram('weights_of_' + info[0],
+                        #     info[1], epoch_num)
+                        pass
 
 
             if key == 'hess_diag_negatives':
@@ -196,15 +198,15 @@ class TrainingProgressTracker(object):
                     info_list = list(meta[key].items())
                     for info in info_list:
                         total_neg, total = total_neg + info[1][0], total + info[1][1]
-                        self.tb_logger.add_scalar('hess_diag_neg_ratio_' + info[0],
-                                                  info[1][0].float() / info[1][1],
-                                                  epoch_num)
+                        # self.tb_logger.add_scalar('hess_diag_neg_ratio_' + info[0],
+                        #                           info[1][0].float() / info[1][1],
+                        #                           epoch_num)
                         logging.info(f'\t{info[0]}: {info[1][0].float() / info[1][1]:.6f} '
                                      f'({info[1][0]}/{info[1][1]})')
 
-                self.tb_logger.add_scalar('hess_diag_neg_ratio',
-                                          total_neg.float() / total,
-                                          epoch_num)
+                # self.tb_logger.add_scalar('hess_diag_neg_ratio',
+                #                           total_neg.float() / total,
+                #                           epoch_num)
                 logging.info(f'\ttotal: {total_neg.float() / total:.6f} '
                              f'({total_neg}/{total})')
             # else:
