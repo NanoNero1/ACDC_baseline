@@ -20,10 +20,10 @@ python main.py \
 	--dset_path=~/Datasets/cifar100 \
 	--arch=wideresnet \
 	--config_path=./configs/neurips/iht_cifar100_wideresnet_steplr_freq20_s50.yaml \
-	--workers=4 \
+	--workers=8 \
 	--epochs=200 \
 	--warmup_epochs=5 \
-	--batch_size=128 \
+	--batch_size=16 \
 	--reset_momentum_after_recycling \
 	--checkpoint_freq 50 \
         --manual_seed="12345" \
