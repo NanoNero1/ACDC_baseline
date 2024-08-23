@@ -57,13 +57,7 @@ class ihtSGD(vanillaSGD):
     print('FIXED IHT SGD')
     print(f"speed iteration {self.iteration}")
 
-
-    # Sloppy but works
-    #newSparsityIter = np.floor( (self.iteration - 100) / 80)
-    #self.sparsity = min(0.9, 0.5 + 0.1*newSparsityIter)
-
     #self.logging()
-    #self.easyPrintParams()
     self.compressOrDecompress()
     
     #self.easyPrintParams()
@@ -92,7 +86,6 @@ class ihtSGD(vanillaSGD):
         ## FINE-TUNE
     elif howFarAlong <= self.phaseLength * self.compressionRatio:
 
-      # before it was frozen for an entire epoch
       if self.notFrozenYet == True:
         ## FREEZING WEIGHTS -- PHASE 1
         self.truncateAndFreeze()
@@ -137,7 +130,6 @@ class ihtSGD(vanillaSGD):
   ### UTILITY FUNCTIONS ######################################################################################
 
   def copyGradient(self):
-    #warmup
     if True:
       with torch.no_grad():
         for p in self.paramsIter():
@@ -159,7 +151,6 @@ class ihtSGD(vanillaSGD):
         state = self.state[p]
         layer = state[iterate]
 
-      # CHECK: Make sure this flattening doesn't affect the original layer
       flatWeights = torch.flatten(layer)
       concatWeights = torch.cat((concatWeights,flatWeights),0)
     concatWeights = concatWeights[1:] # Removing first zero
@@ -179,19 +170,13 @@ class ihtSGD(vanillaSGD):
     for p in self.paramsIter():
       state = self.state[p]
       if iterate == None:
-        print("!!!!!!!!!!! this should sparsify the params")
         p.data[torch.abs(p) <= cutoff] = 0.0
       else:
-        # NOTE: torch.abs(p) is wrong, maybe that's the bug
         (state[iterate])[torch.abs(state[iterate]) <= cutoff] = 0.0
   
-  # NOTE: Refreeze is not only for the PARAMS!
   def refreeze(self,iterate=None):
-    #print('remember we need to give an iterate for refreeeze')
     for p in self.paramsIter():
       state = self.state[p]
-      # TO-DO: make into modular string
-      #p.mul_(state['xt_frozen'])
       if iterate == None:
         p.data *= state['xt_frozen']
       else:
@@ -204,7 +189,6 @@ class ihtSGD(vanillaSGD):
     for p in self.paramsIter():
       state = self.state[p]
       if iterate == None:
-        # NOTE: I CHECKED IT!
         layer = p.data
         state['xt_frozen'] = (torch.abs(layer) > 0).type(torch.uint8)
       else:
@@ -233,7 +217,6 @@ class ihtSGD(vanillaSGD):
       # Sparsity for this layer
       layerSparsity = torch.mean( (torch.abs(layer.data) > 0).type(torch.float) )
       layerName = f"layerSize{torch.numel(layer)}"
-      # NOTE TO SELF: remember, the layer with 10 values isn't strange, it's just the bias layer
 
       # Track the per-layer sparsity with size
       #self.run[f"trials/{self.trialNumber}/{self.setupID}/{layerName}"].append(layerSparsity)

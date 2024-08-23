@@ -50,9 +50,6 @@ class myOptimizer(Optimizer):
   #       if function not in self.functionsToHelpTrack:
   #         continue
   #       elif function in self.expensiveFunctions:
-  #         # TO-DO: we only care about expensive functions actually, 
-  #         # it's probably fine to log expensive variables on each step
-  #         # Do not compute expensive functions on every step
   #         if self.iteration % 50 == 0:
   #           pass
   #         else:
@@ -69,7 +66,6 @@ class myOptimizer(Optimizer):
   #           pass
   #         else:
   #           continue
-  #         # TO-DO: make it the same as function??
         
   #       self.run[f"trials/{self.trialNumber}/{self.setupID}/{variable}"].append(eval("self."+variable))
 
@@ -88,8 +84,6 @@ class myOptimizer(Optimizer):
   #   self.testAccuracy = accuracy
 
   # def easyPrintParams(self):
-  #   # NOTE: the problem with this line is that it might create a NEW tensor (that won't have a gradient)
-  #   #toPrint = 
   #   for pInd,p in enumerate(self.paramsIter()):
   #     #print(f"pInd: {pInd}")
   #     if pInd != 3:
@@ -117,7 +111,6 @@ class myOptimizer(Optimizer):
 
 
   ### These methods are mandatory to be overridden after inheritance
-  ### CHECK: there should be an error if they are not implemented
   """ Desc: the main function that the optimizer gets called on every iteration """
   @abc.abstractmethod
   def step(self,getNewGrad):

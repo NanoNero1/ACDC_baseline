@@ -15,26 +15,16 @@ class ihtAGD(vanillaAGD,ihtSGD):
 
     self.specificSteps = 0
 
-    
-
   def step(self):
     self.specificSteps += 1
     #self.trackingSparsity()
-    #print(f"speed iteration {self.iteration}")
-
-    # Sloppy but works
-    #newSparsityIter = np.floor( (self.iteration - 100) / 80)
-    #self.sparsity = min(0.9, 0.5 + 0.1*newSparsityIter)
+    #print(f"iteration {self.iteration}")
     #self.easyPrintParams()
     #self.logging()
-
-    #print('we got this far at least then')
 
     self.compressOrDecompress()
     #self.trackMatchingMasks(self)
     #self.iteration += 1
-
-  #def returnSparse(self):
 
   def decompressed(self):
     self.areWeCompressed = False
@@ -46,16 +36,10 @@ class ihtAGD(vanillaAGD,ihtSGD):
     print('warmup')
     self.updateWeightsTwo()
 
-  # I checked this, it seems to work
   def truncateAndFreeze(self):
     
     self.updateWeightsTwo()
     self.areWeCompressed = True
-
-    print('this should work')
-    # define zt
-
-
 
     # Truncate xt
     self.sparsify()
@@ -73,52 +57,35 @@ class ihtAGD(vanillaAGD,ihtSGD):
     # Freeze zt
     #self.freeze(iterate='zt')
 
-    pass
-
   ##############################################################################
 
   def updateWeightsTwo(self):
 
     print("AGD updateWeights")
-    # Update z_t the according to the AGD equation in the note
 
     with torch.no_grad():
       for p in self.paramsIter():
 
         state = self.state[p]
 
-
         #First Get z_t+
         state['zt'] = (state['zt'] - (state['zt_oldGrad'] / self.beta) )
 
         #Then sparsify z_t+
-        ## NOTE to Dim: - you sparsify here
-        #or  self.iteration >= self.startFineTune + 1):
         howFarAlong = ((self.iteration - self.warmupLength) % self.phaseLength) + 1
-        # if self.areWeCompressed and (howFarAlong == 1):
+
+        # The fine-tune improvements
         if self.iteration >= self.startFineTune:
           self.refreeze(iterate='zt')
-        #   #pass
-
 
         # And then we do the actual update, NOTE: zt is actually z_t+ right now
         state['zt'] = (self.sqKappa / (self.sqKappa + 1.0) ) * state['zt'] + (1.0 / (self.sqKappa + 1.0)) * state['xt']
 
-        #Find the new z_t
-        #state['zt'] = (self.sqKappa / (self.sqKappa + 1.0) ) * (state['zt'] - (state['zt_oldGrad'] / self.beta) ) + (1.0 / (self.sqKappa + 1.0)) * state['xt']
-
-    #self.sparsify(iterate='zt')
-
-    # CAREFUL! this changes the parameters for the mode!
+    # CAREFUL! this changes the parameters for the model!
     self.getNewGrad('zt')
-    #if self.specificSteps > 8000 and self.specificSteps < 10000:  
-    #  self.clipGradients()
-    ######### ALTERT ######## THERE SHOULD BE self.getNewGrad('zt') above!!!
 
     with torch.no_grad():
       for p in self.paramsIter():
-        #print(p.grad)
-        # CHECK: Is it still the same state?
         state = self.state[p]
         state['zt_oldGrad'] = p.grad.clone().detach()
 
@@ -139,16 +106,9 @@ class ihtAGD(vanillaAGD,ihtSGD):
     #self.refreeze('zt')
 
   def clipGradients(self,clipAmt=0.0001):
-    print("I AM CLIPPING!!!!!!")
-
-    #print(len(self.param_groups))
-    #print("these are the groups")
-    #abort()
 
     #torch.nn.utils.clip_grad_norm_(self.param_groups[0]['params'],norm_type='inf', max_norm=clipAmt)
     torch.nn.utils.clip_grad_value_(self.param_groups[0]['params'],clip_value=clipAmt)
-    #for i 
-    #torch.clamp(self.param_groups[0]['params'],min=-1.0*clipAmt,clipAmt=1.0)
     pass
 
   def trackMatchingMasks(self):
@@ -185,10 +145,8 @@ class ihtAGD(vanillaAGD,ihtSGD):
       for p in self.paramsIter():
         state = self.state[p]
         if iterate == None:
-          #print("!!!!!!!!!!! this should sparsify the params")
           p.data[torch.abs(p) * torch.log(p.size()) <= weightedCutoff] = 0.0
         else:
-          # NOTE: torch.abs(p) is wrong, maybe that's the bug
           (state[iterate])[torch.abs(state[iterate]) * torch.log(state[iterate].size()) <= weightedCutoff] = 0.0
 
 
